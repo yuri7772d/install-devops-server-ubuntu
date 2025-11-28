@@ -51,7 +51,8 @@ sudo apt-get install -y gitlab-runner
 # Verify installation
 gitlab-runner --version
 
----
+## 1️⃣ Install GitLab Runner
+
 ```bash
  volumes = ["/cache","/var/run/docker.sock:/var/run/docker.sock"]
 environment = ["DOCKER_HOST=unix:///var/run/docker.sock"]
