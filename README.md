@@ -12,11 +12,11 @@
   nano /etc/gitlab-runner/config.toml
    
   ```
-
   volumes = ["/cache","/var/run/docker.sock:/var/run/docker.sock"] 
   environment = ["DOCKER_HOST=unix:///var/run/docker.sock"]
-```
+  ```
+
 ### sfgds
   ```
   sudo systemctl restart gitlab-runner
-```
+  ```
