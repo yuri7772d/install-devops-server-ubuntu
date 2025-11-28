@@ -59,5 +59,11 @@ gitlab-runner --version
 ```bash
 volumes = ["/cache","/var/run/docker.sock:/var/run/docker.sock"]
 environment = ["DOCKER_HOST=unix:///var/run/docker.sock"]
-
+```
 ---
+## 1️⃣ coppy file caddy-certificate
+```bash
+# เปลี่ยน user/ip เป็น user/ip ของ server
+
+scp bncc@192.168.100.3:/opt/caddy/caddy-root.crt C:/User/Public
+
