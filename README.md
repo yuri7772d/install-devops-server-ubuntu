@@ -1,60 +1,282 @@
-# 🚀 DevOps Server Setup - GitLab Runner on Ubuntu
-
-[![GitLab Runner](https://img.shields.io/badge/GitLab-Runner-orange)](https://docs.gitlab.com/runner/)
-
-This guide explains how to install and configure **GitLab Runner** on Ubuntu with **Docker executor**, suitable for CI/CD pipelines.
-
----
-
-## 📌 Table of Contents
-- [Features](#features)
-- [Prerequisites](#prerequisites)
-- [1️⃣ Install GitLab Runner](#1️⃣-install-gitlab-runner)
-- [2️⃣ Configure Runner](#2️⃣-configure-runner)
-- [3️⃣ Restart GitLab Runner](#3️⃣-restart-gitlab-runner)
-- [4️⃣ Register Runner with GitLab](#4️⃣-register-runner-with-gitlab)
-- [5️⃣ Test Runner](#5️⃣-test-runner)
-- [Optional: Docker Privileged Mode](#optional-docker-privileged-mode)
-- [Notes](#notes)
-
----
-
-## ✨ Features
-- Install GitLab Runner on Ubuntu
-- Configure Docker executor
-- Map Docker socket for container access
-- Support environment variables
-- Auto-restart on server boot
-
----
-
-## 🛠 Prerequisites
-- Ubuntu 20.04+ or Debian-based OS
-- Root or sudo privileges
-- Docker installed on host
-- GitLab account & project
-
----
-
-## 1️⃣ Install GitLab Runner
+- docker.io
+- portainer
+- caddy
+- registry
+- gitlab
+- gitlab-runner
+###docker
 
 ```bash
-sudo apt-get update
-sudo apt-get install -y curl ca-certificates
+apt install docker.io
 
-# Add GitLab Runner repository
-curl -fsSL https://packages.gitlab.com/install/repositories/runner/gitlab-runner/script.deb.sh | sudo bash
-
-# Install GitLab Runner
-sudo apt-get install -y gitlab-runner
-
-# Verify installation
-gitlab-runner --version
 ```
-
 ---
 
-## 1️⃣ Install GitLab Runner
+###portainer
+
+```bash
+docker volume create portainer_data
+
+docker run -d -p 9443:9443 --name portainer --restart=always -v /var/run/docker.sock:/var/run/docker.sock -v portainer_data:/data portainer/portainer-ce:latest
+
+```
+---
+
+###caddy
+
+```bash
+sudo mkdir -p /opt/caddy
+
+sudo nano /opt/caddy/Caddyfile
+
+```
+
+ตัวอย่าง Caddyfile
+
+```bash
+{
+	# สั่งให้ Caddy ใช้ CA ภายในสำหรับทุกโดเมนในไฟล์นี้
+	cert_issuer internal
+	# auto_https on  # เปิดใช้งาน HTTPS อัตโนมัติ (เป็นค่าเริ่มต้นอยู่แล้ว)
+}
+
+# ---------- Technitium DNS (Web Admin) ----------
+dns.vecskill.ovec {
+	tls internal # บอกให้ใช้ Certificate จาก Internal CA
+	encode zstd gzip
+	reverse_proxy http://technitium-dns:5380
+}
+
+# ---------- Portainer ----------
+# (ตัวอย่างนี้สำหรับ Portainer ที่รันบน HTTPS Port 9443)
+portainer.vecskill.ovec {
+	tls internal
+	encode zstd gzip
+	reverse_proxy https://portainer:9443 {
+		transport http {
+			tls_insecure_skip_verify # จำเป็นเพราะ Certificate ของ Portainer เป็น Self-signed
+		}
+	}
+}
+
+# ---------- Docker Registry (Distribution v2) ----------
+registry.vecskill.ovec {
+	tls internal
+	encode zstd gzip
+	header Docker-Distribution-Api-Version "registry/2.0" # Header เฉพาะของ Registry
+	reverse_proxy http://registry:5000 {
+		header_up X-Forwarded-Proto {scheme}
+	}
+}
+
+# ---------- Registry UI ----------
+registry-ui.vecskill.ovec {
+	tls internal
+	encode zstd gzip
+	reverse_proxy http://registry-ui:80 {
+		header_up X-Forwarded-Proto {scheme}
+	}
+}
+
+# ---------- GitLab ----------
+gitlab.vecskill.ovec {
+	tls internal
+	encode zstd gzip
+	header Strict-Transport-Security "max-age=31536000;"
+	log {
+		output file /var/log/caddy/gitlab_access.log
+	}
+	reverse_proxy http://gitlab:80 {
+		header_up X-Forwarded-Proto {scheme}
+	}
+}
+
+
+```
+
+docker compose
+
+```bash
+services:
+  caddy:
+    image: caddy:latest # ใช้เวอร์ชันล่าสุด หรือระบุเวอร์ชัน 2.x.x
+    container_name: caddy
+    restart: unless-stopped
+    networks:
+      - app_net
+    ports:
+      - "80:80"       # สำหรับ Redirect HTTP -> HTTPS
+      - "443:443"     # HTTPS หลัก
+      - "443:443/udp" # HTTP/3 (ถ้าต้องการ)
+    volumes:
+      # จุดสำคัญ: Mount Caddyfile จาก Host เข้าไปเป็น Read-Only
+      - /opt/caddy/Caddyfile:/etc/caddy/Caddyfile:ro 
+      # Volume สำหรับเก็บ Certificate และข้อมูลอื่นๆ
+      - caddy_data:/data 
+      # Volume สำหรับเก็บ Config และ Root CA
+      - caddy_config:/config 
+      # Volume สำหรับเก็บ Log (สร้างโฟลเดอร์ /var/log/caddy บน Host ก่อน)
+      - /var/log/caddy:/var/log/caddy 
+    environment:
+      - TZ=Asia/Bangkok # ตั้งค่า Timezone (แนะนำ)
+
+networks:
+  app_net:
+    external: true
+    
+volumes:
+  caddy_data:
+    external: true
+  caddy_config:
+    external: true
+
+
+```
+
+curtificate
+
+```bash
+docker cp caddy:/data/caddy/pki/authorities/local/root.crt /opt/caddy/caddy-root.crt
+sudo chmod 644 /opt/caddy/caddy-root.crt
+
+scp bncc@192.168.100.3:/opt/caddy/caddy-root.crt C:/Users/Public
+
+# import on windo
+Import-Certificate -FilePath "C:\Users\Public\caddy-root.crt" -CertStoreLocation Cert:\LocalMachine\Root
+
+# ของ ubuntu server 
+sudo cp /opt/caddy/caddy-root.crt /usr/local/share/ca-certificates/caddy-root.crt
+
+sudo update-ca-certificates
+
+```
+---
+
+###registry
+
+```bash
+networks:
+  app_net:
+    external: true
+
+volumes:
+  registry_data:
+    external: true
+
+services:
+  registry:
+    image: registry:2
+    container_name: registry
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      REGISTRY_STORAGE_DELETE_ENABLED: 'true'
+    networks:
+      - app_net
+    volumes:
+      - registry_data:/var/lib/registry
+
+  registry-ui:
+    image: joxit/docker-registry-ui:main
+    container_name: registry-ui
+    restart: always
+    networks:
+      - app_net
+    ports:
+      - "8080:80"
+    environment:
+      - SINGLE_REGISTRY=true
+      - REGISTRY_TITLE=Docker Registry UI
+      - DELETE_IMAGES=true
+      - SHOW_CONTENT_DIGEST=true
+      - NGINX_PROXY_PASS_URL=http://registry:5000
+      - SHOW_CATALOG_NB_TAGS=true
+      - CATALOG_MIN_BRANCHES=1
+      - CATALOG_MAX_BRANCHES=1
+      - TAGLIST_PAGE_SIZE=100
+      - REGISTRY_SECURED=false
+      - CATALOG_ELEMENTS_LIMIT=1000
+    depends_on:
+      - registry
+
+
+```
+---
+
+
+###gitlab
+compose
+
+```bash
+services:
+  gitlab:
+    image: 'gitlab/gitlab-ce:latest'
+    container_name: gitlab
+    restart: always
+    hostname: 'gitlab.vecskill.ovec'
+    environment:
+      GITLAB_OMNIBUS_CONFIG: |
+        external_url 'https://gitlab.vecskill.ovec'
+        nginx['listen_port'] = 80
+        nginx['listen_https'] = false
+        letsencrypt['enable'] = false
+        gitlab_rails['gitlab_shell_ssh_port'] = 2222
+        # เก็บ IP จริงเมื่อมี reverse proxy
+        nginx['real_ip_header'] = 'X-Forwarded-For'
+        nginx['real_ip_recursive'] = 'on'
+        nginx['real_ip_trusted_addresses'] = ['172.16.0.0/12','192.168.0.0/16','10.0.0.0/8']
+    ports:
+      # - '80:80'
+      # - '443:443'
+      - '2222:22'
+    shm_size: "512m"
+    volumes:
+      - 'gitlab_config:/etc/gitlab'
+      - 'gitlab_logs:/var/log/gitlab'
+      - 'gitlab_data:/var/opt/gitlab'
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost/-/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+    networks:
+      - app_net
+
+networks:
+  app_net:
+    external: true
+
+volumes:
+  gitlab_config:
+    external: true
+  gitlab_logs:
+    external: true
+  gitlab_data:
+    external: true
+
+```
+
+password
+
+```bash
+sudo docker exec -it gitlab grep 'Password:' /etc/gitlab/initial_root_password
+
+หรือ ไปเอาใน container
+cat /etc/gitlab/initial_root_password
+
+
+```
+---
+
+###gitlab-runner
+
+```bash
+curl -fsSL https://packages.gitlab.com/install/repositories/runner/gitlab-runner/script.deb.sh | sudo bash
+
+sudo apt-get install -y gitlab-runner
+
+```
 
 ```bash
 volumes = ["/cache","/var/run/docker.sock:/var/run/docker.sock"]
@@ -64,15 +286,3 @@ environment = ["DOCKER_HOST=unix:///var/run/docker.sock"]
 systemctl restart gitlab-runner
 ```
 ---
-## 1️⃣ coppy file caddy-certificate
-```bash
-# เปลี่ยน user/ip เป็น user/ip ของ server
-
-scp bncc@192.168.100.3:/opt/caddy/caddy-root.crt C:/User/Public
-
-# ของ ubuntu server 
-sudo cp /opt/caddy/caddy-root.crt /usr/local/share/ca-certificates/caddy-root.crt
-
-sudo update-ca-certificates
-
-
