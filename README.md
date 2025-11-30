@@ -4,7 +4,7 @@
 - registry
 - gitlab
 - gitlab-runner
-###docker
+### docker
 
 ```bash
 apt install docker.io
@@ -12,7 +12,7 @@ apt install docker.io
 ```
 ---
 
-###portainer
+### portainer
 
 ```bash
 docker volume create portainer_data
@@ -152,7 +152,7 @@ sudo update-ca-certificates
 ```
 ---
 
-###registry
+### registry
 
 ```bash
 networks:
@@ -205,7 +205,7 @@ services:
 ---
 
 
-###gitlab
+### gitlab
 compose
 
 ```bash
@@ -269,7 +269,7 @@ cat /etc/gitlab/initial_root_password
 ```
 ---
 
-###gitlab-runner
+### gitlab-runner
 
 ```bash
 curl -fsSL https://packages.gitlab.com/install/repositories/runner/gitlab-runner/script.deb.sh | sudo bash
