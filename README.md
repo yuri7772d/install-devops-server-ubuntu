@@ -262,7 +262,8 @@ cat /etc/gitlab/initial_root_password
 ```
 ---
 
-### gitlab-runner
+### gitlab-runner 
+# native
 
 ```bash
 curl -fsSL https://packages.gitlab.com/install/repositories/runner/gitlab-runner/script.deb.sh | sudo bash
@@ -279,3 +280,56 @@ environment = ["DOCKER_HOST=unix:///var/run/docker.sock"]
 systemctl restart gitlab-runner
 ```
 ---
+
+# docker container
+- สร้างโฟเดอร์ไว้เก็บ config
+```bash
+services:
+      mkdir -p /opt/gitlab_runner
+```
+- docker compose
+
+```bash
+services:
+  gitlab-runner:
+    image: gitlab/gitlab-runner:latest
+    container_name: gitlab_runner
+    restart: always
+    networks:
+      - app_net
+    volumes:
+      - /opt/gitlab_runner:/etc/gitlab-runner # เก็บ config.toml
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /opt/caddy/caddy-root.crt:/usr/local/share/ca-certificates/caddy-root.crt:ro
+    environment:
+      - DOCKER_HOST=unix:///var/run/docker.sock
+
+networks:
+  app_net:
+    external: true
+
+```
+
+- register -runner
+```bash
+   #เข้ามาใน container
+   docker exec -it gitlab_runner -u root -p
+
+   # register runner
+   gitlab runner register
+
+   # ใส่ host เป็น http://gitlab จะดึง repo ผ่าน docker network
+   http://gitlab
+   # ใส่ token ไปเอามาจาก gitlab setting -> ci/cd -> runner -> create runner 
+
+   # executer 
+   docker
+
+   # defuatl image
+   node:22
+     
+```
+- เเก้ config ของ runner ไห้ไช้ docker network
+  
+---
+
