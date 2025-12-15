@@ -299,7 +299,7 @@ ssh-keygen -t ed25519
 cat ~/.ssh/id_ed25519.pub
 
 # วาง public key ที่นี้ ในเครื่อง production-server
-~/.ssh/authorized_keys
+nano ~/.ssh/authorized_keys
 
 #ดู private key
 cat ~/.ssh/id_ed25519
