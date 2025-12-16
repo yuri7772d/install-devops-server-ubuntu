@@ -3,7 +3,30 @@
 - caddy
 - registry
 - gitlab
-- gitlab-runner
+- gitlab-runne
+  ---
+# setup ubuntu
+
+
+```bash
+
+sudo apt update && sudo apt upgrade -y
+
+```
+
+อนุญาตการเชื่อมต่อที่จำเป็น
+```bash
+sudo ufw allow OpenSSH     # Port 22 สำหรับ SSH
+sudo ufw allow 80/tcp       # Port 80 สำหรับ HTTP
+sudo ufw allow 443/tcp      # Port 443 สำหรับ HTTPS
+
+sudo ufw allow 2222/tcp     # สำหรับ GitLab SSH
+sudo ufw allow 5000/tcp     # สำหรับ Docker Registry
+sudo ufw allow 8080/tcp     # สำหรับ Registry UI
+sudo ufw allow 9443/tcp     # สำหรับ Portainer
+
+```
+---
 # docker
 
 ## install เเบบ ธรรมดาง่าย
