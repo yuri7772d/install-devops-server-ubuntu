@@ -349,6 +349,10 @@ docker push localhost:5000/library/docker:26
 docker pull panubo/sshd:latest
 docker tag panubo/sshd:latest localhost:5000/library/alpine-ssh:latest
 docker push localhost:5000/library/alpine-ssh:latest
+
+docker pull mysql:8.0
+docker tag mysql:8.0 localhost:5000/library/mysql:8.0
+docker push localhost:5000/library/mysql:8.0
 ```
 ---
 
